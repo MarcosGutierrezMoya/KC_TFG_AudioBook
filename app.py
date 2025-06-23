@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
+from pydub import AudioSegment
+from subprocess import run
 
 app = Flask(__name__)
 CORS(app)  # Permite requests desde el frontend
@@ -15,6 +17,37 @@ def set_variable(new_value):
     variable_a_modificar = new_value
     print(f"La variable ha sido actualizada a: {variable_a_modificar}")
     return variable_a_modificar
+
+def distorsionar_voz(input_audio, output_audio, final_output, model_path, index_path, config_path):
+    """
+    Realiza la conversión y distorsión de voz usando RVC y pydub.
+    """
+    # 1. Conversión de voz (RVC CLI)
+    command = [
+        "python", "infer.py",
+        "-m", model_path,
+        "-i", input_audio,
+        "-o", output_audio,
+        "--index", index_path,
+        "--f0", "crepe",
+        "--pitch", "0",
+        "--method", "harvest",
+        "--config", config_path
+    ]
+    run(command)
+
+    # 2. Distorsión postprocesada
+    audio = AudioSegment.from_file(output_audio)
+    distorted = (
+        audio
+        .low_pass_filter(300)
+        .high_pass_filter(1200)
+        .speedup(playback_speed=1.15)
+        .apply_gain(-3)
+    )
+    distorted.export(final_output, format="wav")
+    print(f"✅ Voz distorsionada guardada en: {final_output}")
+    return final_output
 
 # Ruta para servir el frontend
 @app.route('/')
@@ -49,6 +82,29 @@ def api_set_variable():
                 'message': 'No se proporcionó un valor'
             }), 400
             
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# Nuevo endpoint para distorsionar voz
+@app.route('/api/distorsionar', methods=['POST'])
+def api_distorsionar():
+    try:
+        data = request.get_json()
+        input_audio = data.get('input_audio', 'input.wav')
+        output_audio = data.get('output_audio', 'voz_convertida_rvc.wav')
+        final_output = data.get('final_output', 'voz_final_distorsionada.wav')
+        model_path = data.get('model_path', 'weights/mi_modelo.pth')
+        index_path = data.get('index_path', 'logs/mi_modelo/added_IVF.index')
+        config_path = data.get('config_path', 'configs/config.json')
+
+        result = distorsionar_voz(input_audio, output_audio, final_output, model_path, index_path, config_path)
+        return jsonify({
+            'status': 'success',
+            'final_output': result
+        })
     except Exception as e:
         return jsonify({
             'status': 'error',
