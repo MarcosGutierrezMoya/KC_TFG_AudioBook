@@ -1,0 +1,10 @@
+google-generativeai
+langid
+numpy
+openai-whisper
+python-dotenv
+requests
+torch
+transformers
+flask==2.3.3
+flask-cors==4.0.0
