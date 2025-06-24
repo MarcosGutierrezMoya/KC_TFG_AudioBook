@@ -1,68 +1,37 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request,render_template, jsonify, render_template_string
 from flask_cors import CORS
-from pydub import AudioSegment
-from subprocess import run
+import shared_variable
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+import os
+import subprocess
+import sys
+from threading import Thread
+import time
 
 app = Flask(__name__)
-CORS(app)  # Permite requests desde el frontend
+CORS(app)
+app.config['DEBUG'] = True
 
-# Tu variable global
-variable_a_modificar = 'Valor Inicial'
-
-def get_variable():
-    return variable_a_modificar
-
-def set_variable(new_value):
-    global variable_a_modificar
-    variable_a_modificar = new_value
-    print(f"La variable ha sido actualizada a: {variable_a_modificar}")
-    return variable_a_modificar
-
-def distorsionar_voz(input_audio, output_audio, final_output, model_path, index_path, config_path):
-    """
-    Realiza la conversión y distorsión de voz usando RVC y pydub.
-    """
-    # 1. Conversión de voz (RVC CLI)
-    command = [
-        "python", "infer.py",
-        "-m", model_path,
-        "-i", input_audio,
-        "-o", output_audio,
-        "--index", index_path,
-        "--f0", "crepe",
-        "--pitch", "0",
-        "--method", "harvest",
-        "--config", config_path
-    ]
-    run(command)
-
-    # 2. Distorsión postprocesada
-    audio = AudioSegment.from_file(output_audio)
-    distorted = (
-        audio
-        .low_pass_filter(300)
-        .high_pass_filter(1200)
-        .speedup(playback_speed=1.15)
-        .apply_gain(-3)
-    )
-    distorted.export(final_output, format="wav")
-    print(f"✅ Voz distorsionada guardada en: {final_output}")
-    return final_output
-
-# Ruta para servir el frontend
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE)
+    """Página principal - sirve el archivo HTML"""
+    return render_template('index.html')
 
-# API endpoint para obtener la variable
 @app.route('/api/variable', methods=['GET'])
 def api_get_variable():
-    return jsonify({
-        'value': get_variable(),
-        'status': 'success'
-    })
+    try:
+        value = shared_variable.get_variable()
+        return jsonify({
+            'value': value,
+            'status': 'success'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
-# API endpoint para actualizar la variable
 @app.route('/api/variable', methods=['POST'])
 def api_set_variable():
     try:
@@ -70,12 +39,18 @@ def api_set_variable():
         new_value = data.get('value', '')
         
         if new_value is not None:
-            updated_value = set_variable(new_value)
-            return jsonify({
-                'value': updated_value,
-                'status': 'success',
-                'message': f'Variable actualizada a: {updated_value}'
-            })
+            updated_value = shared_variable.set_variable(new_value)
+            if updated_value is not None:
+                return jsonify({
+                    'value': updated_value,
+                    'status': 'success',
+                    'message': f'Variable actualizada a: {updated_value}'
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Error al actualizar la variable'
+                }), 500
         else:
             return jsonify({
                 'status': 'error',
@@ -88,315 +63,147 @@ def api_set_variable():
             'message': str(e)
         }), 500
 
-# Nuevo endpoint para distorsionar voz
-@app.route('/api/distorsionar', methods=['POST'])
-def api_distorsionar():
+@app.route('/api/execute-notebook', methods=['POST'])
+def execute_notebook():
     try:
         data = request.get_json()
-        input_audio = data.get('input_audio', 'input.wav')
-        output_audio = data.get('output_audio', 'voz_convertida_rvc.wav')
-        final_output = data.get('final_output', 'voz_final_distorsionada.wav')
-        model_path = data.get('model_path', 'weights/mi_modelo.pth')
-        index_path = data.get('index_path', 'logs/mi_modelo/added_IVF.index')
-        config_path = data.get('config_path', 'configs/config.json')
-
-        result = distorsionar_voz(input_audio, output_audio, final_output, model_path, index_path, config_path)
+        notebook_path = data.get('notebook_path', 'tu_notebook.ipynb')
+        
+        # Verificar que el archivo existe
+        if not os.path.exists(notebook_path):
+            return jsonify({
+                'status': 'error',
+                'message': f'Notebook no encontrado: {notebook_path}'
+            }), 404
+        
+        def run_notebook():
+            try:
+                # Leer el notebook
+                with open(notebook_path, 'r', encoding='utf-8') as f:
+                    nb = nbformat.read(f, as_version=4)
+                
+                # Configurar el ejecutor
+                ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+                
+                # Ejecutar el notebook
+                ep.preprocess(nb, {'metadata': {'path': os.path.dirname(notebook_path) or '.'}})
+                
+                # Guardar el notebook ejecutado
+                with open(notebook_path, 'w', encoding='utf-8') as f:
+                    nbformat.write(nb, f)
+                    
+                print(f"✅ Notebook {notebook_path} ejecutado correctamente")
+                
+            except Exception as e:
+                print(f"❌ Error ejecutando notebook: {e}")
+        
+        # Ejecutar en hilo separado para no bloquear la respuesta
+        thread = Thread(target=run_notebook)
+        thread.start()
+        
         return jsonify({
             'status': 'success',
-            'final_output': result
+            'message': f'Ejecutando notebook: {notebook_path}'
         })
+        
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f'Error al ejecutar notebook: {str(e)}'
         }), 500
 
-# Template HTML embebido
-HTML_TEMPLATE = '''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modificador de Variable</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+@app.route('/api/execute-cell', methods=['POST'])
+def execute_cell():
+    try:
+        data = request.get_json()
+        code = data.get('code', '')
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
+        if not code.strip():
+            return jsonify({
+                'status': 'error',
+                'message': 'No se proporcionó código para ejecutar'
+            }), 400
         
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            max-width: 500px;
-            width: 100%;
-        }
+        def run_code():
+            try:
+                # Ejecutar el código en el contexto actual
+                exec(code, globals())
+                print(f"✅ Código ejecutado correctamente")
+            except Exception as e:
+                print(f"❌ Error ejecutando código: {e}")
         
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            font-weight: 300;
-        }
+        # Ejecutar en hilo separado
+        thread = Thread(target=run_code)
+        thread.start()
         
-        .form-group {
-            margin-bottom: 25px;
-        }
+        return jsonify({
+            'status': 'success',
+            'message': 'Código ejecutado correctamente'
+        })
         
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 500;
-            font-size: 1.1em;
-        }
-        
-        input[type="text"] {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            font-size: 1.1em;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.8);
-        }
-        
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            transform: translateY(-2px);
-        }
-        
-        .buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-        
-        button {
-            padding: 15px 25px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .btn-update {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-        
-        .btn-update:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-get {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
-            color: white;
-        }
-        
-        .btn-get:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
-        }
-        
-        .current-value {
-            background: rgba(102, 126, 234, 0.1);
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-        }
-        
-        .current-value h3 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-        
-        .value-display {
-            font-size: 1.1em;
-            color: #333;
-            font-weight: 500;
-            word-wrap: break-word;
-            min-height: 25px;
-        }
-        
-        .message {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
-            text-align: center;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-        }
-        
-        .message.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .message.success {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-            border: 1px solid rgba(40, 167, 69, 0.2);
-        }
-        
-        .message.error {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-            border: 1px solid rgba(220, 53, 69, 0.2);
-        }
-        
-        @media (max-width: 600px) {
-            .container {
-                padding: 25px;
-                margin: 10px;
-            }
-            
-            .buttons {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔧 Modificador de Variable</h1>
-        
-        <div id="message" class="message"></div>
-        
-        <div class="current-value">
-            <h3>Valor Actual:</h3>
-            <div id="currentValue" class="value-display">Cargando...</div>
-        </div>
-        
-        <div class="form-group">
-            <label for="newValue">Nuevo Valor:</label>
-            <input type="text" id="newValue" placeholder="Introduce el nuevo valor...">
-        </div>
-        
-        <div class="buttons">
-            <button class="btn-update" onclick="updateVariable()">
-                Actualizar Variable
-            </button>
-            <button class="btn-get" onclick="getCurrentValue()">
-                Obtener Valor Actual
-            </button>
-        </div>
-    </div>
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al ejecutar código: {str(e)}'
+        }), 500
 
-    <script>
-        // Función para mostrar mensajes
-        function showMessage(text, type = 'success') {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = text;
-            messageDiv.className = `message ${type}`;
-            messageDiv.classList.add('show');
+@app.route('/api/run-python-file', methods=['POST'])
+def run_python_file():
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path', '')
+        
+        if not file_path:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se proporcionó ruta del archivo'
+            }), 400
             
-            setTimeout(() => {
-                messageDiv.classList.remove('show');
-            }, 3000);
-        }
+        if not os.path.exists(file_path):
+            return jsonify({
+                'status': 'error',
+                'message': f'Archivo no encontrado: {file_path}'
+            }), 404
         
-        // Función para obtener el valor actual
-        async function getCurrentValue() {
-            try {
-                const response = await fetch('/api/variable');
-                const data = await response.json();
+        def run_file():
+            try:
+                # Ejecutar el archivo Python
+                result = subprocess.run([sys.executable, file_path], 
+                                      capture_output=True, text=True, timeout=300)
                 
-                if (data.status === 'success') {
-                    document.getElementById('currentValue').textContent = data.value || 'Sin valor';
-                    showMessage('Valor obtenido correctamente', 'success');
-                } else {
-                    showMessage('Error al obtener el valor', 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showMessage('Error de conexión', 'error');
-            }
-        }
+                if result.returncode == 0:
+                    print(f"✅ Archivo {file_path} ejecutado correctamente")
+                    if result.stdout:
+                        print("📤 Output:", result.stdout)
+                else:
+                    print(f"❌ Error ejecutando {file_path}:", result.stderr)
+                    
+            except subprocess.TimeoutExpired:
+                print(f"⏰ Timeout ejecutando {file_path}")
+            except Exception as e:
+                print(f"❌ Error ejecutando archivo: {e}")
         
-        // Función para actualizar la variable
-        async function updateVariable() {
-            const newValue = document.getElementById('newValue').value;
-            
-            if (!newValue.trim()) {
-                showMessage('Por favor introduce un valor', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/variable', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        value: newValue
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    document.getElementById('currentValue').textContent = data.value;
-                    document.getElementById('newValue').value = '';
-                    showMessage(data.message, 'success');
-                } else {
-                    showMessage(data.message || 'Error al actualizar', 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showMessage('Error de conexión', 'error');
-            }
-        }
+        # Ejecutar en hilo separado
+        thread = Thread(target=run_file)
+        thread.start()
         
-        // Permitir actualizar con Enter
-        document.getElementById('newValue').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                updateVariable();
-            }
-        });
+        return jsonify({
+            'status': 'success',
+            'message': f'Ejecutando archivo: {file_path}'
+        })
         
-        // Cargar valor inicial al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            getCurrentValue();
-        });
-    </script>
-</body>
-</html>
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al ejecutar archivo: {str(e)}'
+        }), 500
+
+# Template HTML (el mismo que antes)
+HTML_TEMPLATE = '''
 '''
 
 if __name__ == '__main__':
-    print("🚀 Iniciando servidor Flask...")
+    print("🚀 Iniciando servidor Flask para Notebook...")
     print("📱 Frontend disponible en: http://localhost:5000")
-    print("🔧 API endpoints:")
-    print("   GET  /api/variable - Obtener valor actual")
-    print("   POST /api/variable - Actualizar variable")
+    print("📓 Conectado a la variable del notebook via archivo compartido")
     app.run(debug=True, host='0.0.0.0', port=5000)

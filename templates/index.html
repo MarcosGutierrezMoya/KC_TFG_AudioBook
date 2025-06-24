@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modificador de Variable - Notebook</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            font-weight: 300;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1em;
+            font-style: italic;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .execution-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .file-input-group {
+            margin-bottom: 15px;
+        }
+
+        .file-input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            color: #333;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-update:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-get {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn-get:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-execute {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            font-size: 0.9em;
+            padding: 12px 20px;
+        }
+
+        .btn-execute:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-run {
+            background: linear-gradient(135deg, #fd7e14, #e83e8c);
+            color: white;
+            font-size: 0.9em;
+            padding: 12px 20px;
+        }
+
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(253, 126, 20, 0.4);
+        }
+
+        .current-value {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .current-value h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .value-display {
+            font-size: 1.1em;
+            color: #333;
+            font-weight: 500;
+            word-wrap: break-word;
+            min-height: 25px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .message.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+
+        .message.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+
+        .info-box {
+            background: rgba(23, 162, 184, 0.1);
+            border: 1px solid rgba(23, 162, 184, 0.2);
+            color: #17a2b8;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+                margin: 10px;
+            }
+
+            .buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📓 Variable del Notebook</h1>
+        <div class="subtitle">Conectado a Jupyter Notebook</div>
+
+        <div class="info-box">
+            💡 Esta variable se sincroniza automáticamente con tu notebook
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="current-value">
+            <h3>Valor Actual en el Notebook:</h3>
+            <div id="currentValue" class="value-display">Cargando...</div>
+        </div>
+
+        <div class="form-group">
+            <label for="newValue">Nuevo Valor:</label>
+            <input type="text" id="newValue" placeholder="Introduce el nuevo valor...">
+        </div>
+
+        <div class="buttons">
+            <button class="btn-update" onclick="updateVariable()">
+                Actualizar Variable
+            </button>
+            <button class="btn-get" onclick="getCurrentValue()">
+                Sincronizar
+            </button>
+        </div>
+
+        <!-- <div class="section-title">🚀 Ejecutar Código</div>
+
+        <div class="execution-buttons">
+            <button class="btn-execute" onclick="executeNotebook()">
+                📓 Ejecutar Notebook
+            </button>
+            <button class="btn-run" onclick="runPythonFile()">
+                🐍 Ejecutar Archivo Python
+            </button>
+        </div>
+
+        <div class="file-input-group">
+            <input type="text" id="notebookPath" placeholder="Ruta del notebook (ej: tu_notebook.ipynb)"
+                value="tu_notebook.ipynb">
+            <input type="text" id="pythonFilePath" placeholder="Ruta del archivo Python (ej: mi_script.py)">
+        </div>
+
+        <div class="form-group">
+            <label for="codeToExecute">Ejecutar Código Python Directo:</label>
+            <textarea id="codeToExecute" placeholder="# Escribe tu código Python aquí
+import shared_variable
+print(f'Valor actual: {shared_variable.get_variable()}')
+shared_variable.set_variable('Nuevo valor desde código')
+print('Código ejecutado correctamente!')"
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 0.9em; resize: vertical; min-height: 120px;"></textarea>
+        </div>
+
+        <button class="btn-execute" onclick="executeCode()" style="width: 100%; margin-bottom: 20px;">
+            ⚡ Ejecutar Código
+        </button> -->
+    </div>
+
+    <script>
+        // Auto-refresh cada 5 segundos
+        setInterval(getCurrentValue, 5000);
+
+        function showMessage(text, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.add('show');
+
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        async function getCurrentValue() {
+            try {
+                const response = await fetch('/api/variable');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('currentValue').textContent = data.value || 'Sin valor';
+                } else {
+                    console.error('Error al obtener el valor');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function updateVariable() {
+            const newValue = document.getElementById('newValue').value;
+
+            if (!newValue.trim()) {
+                showMessage('Por favor introduce un valor', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/variable', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        value: newValue
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('currentValue').textContent = data.value;
+                    document.getElementById('newValue').value = '';
+                    executeNotebook();
+                    showMessage('✅ Variable actualizada en el notebook!\nAhora comienza la conversión a audio', 'success');
+                } else {
+                    showMessage(data.message || 'Error al actualizar', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        document.getElementById('newValue').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                updateVariable();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            getCurrentValue();
+        });
+
+        // Nuevas funciones para ejecutar código
+        async function executeNotebook() {
+            // const notebookPath = document.getElementById('notebookPath').value || 'ttsCollab.ipynb';
+
+            try {
+                showMessage('🔄 Ejecutando notebook...', 'success');
+
+                const response = await fetch('/api/execute-notebook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        notebook_path: 'ttsCollab.ipynb'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showMessage('✅ Notebook ejecutándose en segundo plano', 'success');
+                    // Actualizar la variable después de un momento
+                    setTimeout(() => {
+                        getCurrentValue();
+                    }, 2000);
+                } else {
+                    showMessage(data.message || 'Error al ejecutar notebook', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión al ejecutar notebook', 'error');
+            }
+        }
+
+        async function runPythonFile() {
+            const filePath = document.getElementById('pythonFilePath').value;
+
+            if (!filePath.trim()) {
+                showMessage('Por favor introduce la ruta del archivo Python', 'error');
+                return;
+            }
+
+            try {
+                showMessage('🔄 Ejecutando archivo Python...', 'success');
+
+                const response = await fetch('/api/run-python-file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_path: filePath
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showMessage('✅ Archivo Python ejecutándose', 'success');
+                    setTimeout(() => {
+                        getCurrentValue();
+                    }, 2000);
+                } else {
+                    showMessage(data.message || 'Error al ejecutar archivo', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión al ejecutar archivo', 'error');
+            }
+        }
+
+        async function executeCode() {
+            const code = document.getElementById('codeToExecute').value;
+
+            if (!code.trim()) {
+                showMessage('Por favor introduce código para ejecutar', 'error');
+                return;
+            }
+
+            try {
+                showMessage('⚡ Ejecutando código...', 'success');
+
+                const response = await fetch('/api/execute-cell', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showMessage('✅ Código ejecutado correctamente', 'success');
+                    setTimeout(() => {
+                        getCurrentValue();
+                    }, 1000);
+                } else {
+                    showMessage(data.message || 'Error al ejecutar código', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión al ejecutar código', 'error');
+            }
+        }
+    </script>
+</body>
+
+</html>
