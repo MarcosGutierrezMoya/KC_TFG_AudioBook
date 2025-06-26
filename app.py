@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 from threading import Thread
-import time
+import textmodel
 
 app = Flask(__name__)
 CORS(app)
@@ -40,6 +40,7 @@ def api_set_variable():
         
         if new_value is not None:
             updated_value = shared_variable.set_variable(new_value)
+            textmodel.init()
             if updated_value is not None:
                 return jsonify({
                     'value': updated_value,

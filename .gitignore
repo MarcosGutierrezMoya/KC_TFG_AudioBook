@@ -1,2 +1,6 @@
 /env
 /__pycache__
+/gemma-3-4b-it
+
+.env
+*.wav

@@ -13,3 +13,5 @@ nbconvert==7.7.4
 jupyter==1.0.0
 pydub
 pygame
+huggingface-hub
+js2py
