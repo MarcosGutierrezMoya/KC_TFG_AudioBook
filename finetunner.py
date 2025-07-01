@@ -1,6 +1,3 @@
-import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Fuerza uso exclusivo de CPU (comentado para usar GPU)
-
 import pandas as pd
 import random
 import torch
@@ -9,14 +6,18 @@ from datasets import load_dataset
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
-    TextDataset,
     DataCollatorForLanguageModeling,
     TrainingArguments,
-    Trainer
+    Trainer,
+    BitsAndBytesConfig
 )
+from peft import get_peft_model, LoraConfig, TaskType
+from peft.utils import prepare_model_for_kbit_training
 from rouge_score import rouge_scorer
 
+
 torch.cuda.empty_cache()
+
 
 # ========== 1. CARGA Y FILTRADO ==========
 streamed_dataset = load_dataset(
@@ -58,58 +59,110 @@ with open("train.txt", "w", encoding="utf-8") as f:
         f.write(row + "\n")
 print("📄 Guardado en train.txt (formato entrenable)")
 
-# ========== 4. FINE-TUNING ==========
+# ========== 4. FINE-TUNING CON PEFT (LoRA) ==========
 print("🧠 Cargando tokenizer y modelo base...")
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-4b-it", cache_dir="gemma-3-4b-it")
-model = AutoModelForCausalLM.from_pretrained("google/gemma-3-4b-it", cache_dir="gemma-3-4b-it")
 
-train_dataset = TextDataset(
-    tokenizer=tokenizer,
-    file_path="train.txt",
-    block_size=128
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-4b-it", cache_dir="gemma-3-4b-it")
+
+
+# Cambiar a quantización 4-bit (más estable con LoRA)
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"
 )
 
-data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
+model = AutoModelForCausalLM.from_pretrained(
+    "google/gemma-3-4b-it",
+    cache_dir="gemma-3-4b-it",
+    device_map="auto",
+    quantization_config=bnb_config
+)
+
+# Prepare model for k-bit training (LoRA + 8bit/4bit)
+model = prepare_model_for_kbit_training(model)
+
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=32,
+    lora_dropout=0.05,
+    bias="none",
+    task_type=TaskType.CAUSAL_LM,
+    target_modules=["q_proj", "v_proj"]
+)
+
+
+model = get_peft_model(model, lora_config)
+
+# Debug: Print trainable parameters (if needed to check setup)
+# trainable_params = [n for n, p in model.named_parameters() if p.requires_grad]
+# frozen_params = [n for n, p in model.named_parameters() if not p.requires_grad]
+# print(f"Trainable parameters: {len(trainable_params)}")
+# print(f"Frozen parameters: {len(frozen_params)}")
+# if len(trainable_params) == 0:
+#     print("❌ No parameters require gradients! Training will fail.")
+# else:
+#     print("✅ Parameters set up for training.")
+
+# ========== 5. TOKENIZAR DATOS ==========
+from datasets import load_dataset as load_text_dataset
+
+dataset = load_text_dataset("text", data_files={"train": "train.txt"})
+def tokenize_fn(example):
+    tokens = tokenizer(
+        example["text"],
+        truncation=True,
+        padding="max_length",
+        max_length=128
+    )
+    tokens["labels"] = tokens["input_ids"].copy()
+    return tokens
+
+tokenized_dataset = dataset.map(tokenize_fn, batched=True)
+tokenized_dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+model.config.use_cache = False
+
+# ========== 6. ENTRENAMIENTO ==========
 training_args = TrainingArguments(
-    output_dir="./gemma-finetuned",
+    output_dir="./gemma-peft-finetuned",
     overwrite_output_dir=True,
     num_train_epochs=2,
     per_device_train_batch_size=1,
     save_steps=500,
-    gradient_checkpointing=True,  # ✅ Habilita gradient checkpointing para ahorrar VRAM
+    gradient_checkpointing=False,  # Disabled due to bitsandbytes bug
     save_total_limit=1,
     logging_steps=100,
-    fp16=True,  # ✅ Usa float16 para ahorrar VRAM
-    # no_cuda=True  # ❌ Quitar para usar GPU
+    fp16=True,
+    report_to="none"
 )
 
-if training_args.gradient_checkpointing:
-    model.gradient_checkpointing_enable()
-    model.config.use_cache = False  # Refuerza tras habilitar gradient checkpointing
-
-print("🚀 Iniciando entrenamiento en GPU (si está disponible)...")
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=train_dataset,
+    train_dataset=tokenized_dataset["train"],
     data_collator=data_collator
 )
+
+print("🚀 Iniciando entrenamiento...")
 trainer.train()
 
-# ========== 5. GUARDAR ==========
-print("💾 Guardando modelo y tokenizer...")
-trainer.save_model("./gemma-finetuned")
-tokenizer.save_pretrained("./gemma-finetuned")
-print("✅ Fine-tuning completo.")
+# ========== 7. GUARDAR ADAPTADORES ==========
+print("💾 Guardando adaptadores LoRA...")
+model.save_pretrained("./gemma-peft-adapters")
+tokenizer.save_pretrained("./gemma-peft-adapters")
+print("✅ Fine-tuning completo con LoRA.")
 
-# ========== 6. EVALUACIÓN ROUGE ==========
+# ========== 8. EVALUACIÓN ROUGE ==========
 print("📏 Evaluando métricas ROUGE...")
 
-# Re-cargar modelo entrenado en GPU o CPU según disponibilidad
+from peft import PeftModel
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = AutoModelForCausalLM.from_pretrained("./gemma-finetuned").to(device)
-tokenizer = AutoTokenizer.from_pretrained("./gemma-finetuned")
+base_model = AutoModelForCausalLM.from_pretrained("google/gemma-3-4b-it", device_map="auto")
+model = PeftModel.from_pretrained(base_model, "./gemma-peft-adapters").to(device)
 
 scorer = rouge_scorer.RougeScorer(["rouge1", "rougeL"], use_stemmer=True)
 evaluation_subset = df.sample(50, random_state=42).reset_index(drop=True)
@@ -153,7 +206,6 @@ for i, row in evaluation_subset.iterrows():
             "error": str(e)
         })
 
-# Guardar métricas
 avg_rouge1 = sum(s["rouge1"] for s in rouge_scores) / len(rouge_scores)
 avg_rougeL = sum(s["rougeL"] for s in rouge_scores) / len(rouge_scores)
 
