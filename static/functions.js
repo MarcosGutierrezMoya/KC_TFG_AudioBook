@@ -28,6 +28,7 @@
 
         async function updateVariable(text = "") {
             const newValue = document.getElementById('newValue').value;
+            const language = document.getElementById('language').value;
 
             if (!newValue.trim()) {
                 showMessage('Por favor introduce un valor', 'error');
@@ -35,13 +36,15 @@
             }
 
             try {
+                
                 const response = await fetch('/api/variable', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        value: text === "" ? newValue : text
+                        value: text === "" ? newValue : text,
+                        language: language
                     })
                 });
 

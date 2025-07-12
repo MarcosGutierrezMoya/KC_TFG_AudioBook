@@ -34,7 +34,7 @@ def init():
 
     # 🧠 Prompt
     prompt = shared_variable.get_variable()
-    inputs = tokenizer(prompt, return_tensors="pt", padding=True)
+    inputs = tokenizer(prompt["prompt"], return_tensors="pt", padding=True)
 
     # GPU si está disponible
     if torch.cuda.is_available():
@@ -54,7 +54,7 @@ def init():
 
     # 📤 Mostrar respuesta
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    shared_variable.set_variable(generated_text)
+    shared_variable.set_variable(generated_text, prompt["language"])
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # headless=True para ocultar el navegador
         page = browser.new_page()

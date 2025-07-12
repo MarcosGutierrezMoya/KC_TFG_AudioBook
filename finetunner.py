@@ -17,7 +17,8 @@ from rouge_score import rouge_scorer
 
 
 torch.cuda.empty_cache()
-
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
 
 # ========== 1. CARGA Y FILTRADO ==========
 streamed_dataset = load_dataset(

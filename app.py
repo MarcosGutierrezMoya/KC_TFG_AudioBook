@@ -23,7 +23,8 @@ def api_get_variable():
     try:
         value = shared_variable.get_variable()
         return jsonify({
-            'value': value,
+            'value': value['prompt'],
+            'language': value['language'],
             'status': 'success'
         })
     except Exception as e:
@@ -37,9 +38,11 @@ def api_set_variable():
     try:
         data = request.get_json()
         new_value = data.get('value', '')
-        
-        if new_value is not None:
-            updated_value = shared_variable.set_variable(new_value)
+        new_language = data.get('language', '')
+
+        if new_value is not None and new_language is not None:
+            updated_value = shared_variable.set_variable(new_value, new_language)
+            print(f"DEBUG: updated_value={updated_value}")
             textmodel.init()
             if updated_value is not None:
                 return jsonify({

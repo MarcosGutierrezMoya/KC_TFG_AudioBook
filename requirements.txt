@@ -1,11 +1,13 @@
 google-generativeai
 langid
 numpy
+pandas
 openai-whisper
 python-dotenv
 requests
 torch
 transformers
+transformers[torch]
 flask==2.3.3
 flask-cors==4.0.0
 nbformat==5.9.2
@@ -14,4 +16,8 @@ jupyter==1.0.0
 pydub
 pygame
 huggingface-hub
-js2py
+playwright
+datasets
+rouge_score
+bitsandbytes
+peft
