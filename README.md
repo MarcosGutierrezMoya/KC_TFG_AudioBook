@@ -2,8 +2,8 @@
 ### by Marc Van Cutsem y Marcos Gutierrez
 
 La idea es tener un modelo de lenguaje finetunueado con libros e historias y otro modelo que sea capaz de convertir a audio el texto.  
-Para ello hemos cogido un modelo de código abierto y de uso local (precio gratuito) de Hugging Face, el **gemma-3-4b-it**, que es decente en la generación de texto,  
-junto con la librería de **josecannete/large_spanish_corpus**, que nos ofrecía un dataset en español para poder finetunnear nuestra generación de texto a una mejor generación que la ofrecida por el propio modelo.
+Para ello hemos cogido un modelo de código abierto y de uso local (precio gratuito) de Hugging Face, el **gemma-3-4b-it**, que es decente en la generación de texto, junto con la librería 
+de **josecannete/large_spanish_corpus**, que nos ofrecía un dataset en español para poder finetunnear nuestra generación de texto a una mejor generación que la ofrecida por el propio modelo.
 Al usar el modelo de manera local, hemos limitado los tokens de salida.
 
 Si no quieres instalar las librerías en local, puedes crearte un entorno virtual:
@@ -30,4 +30,4 @@ El fine-tuning no ha llegado a funcionar por que uno no tiene el espacio en disc
 Igualmente el entrenamiento en local es costoso y, para intentar mejorar el rendimiento del modelo y optimizar los recursos, hemos utilizado la librería **PEFT** y cambiamos a Qlora 4bits ya que nos dió un bug al usar el de 8bits.
 
 Hemos usado un modelo de voz también de código abierto, [Kokoro](https://github.com/hexgrad/kokoro?tab=readme-ov-file#advanced-usage).  
-Aún así hemos distosionado un poco la voz, cambiadole los ajustes como el pitch o la velocidad.
+Aún así hemos distosionado un poco la voz, cambiándole los ajustes como el pitch o la velocidad, con el fin de evitar problemas de copyright y derechos de autor por voces no propias/no autorizadas.
