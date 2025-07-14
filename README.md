@@ -24,7 +24,7 @@ HF_TOKEN=hf_xxxxxxxxxxxxxxxxxx
 ```
 
 El fine-tuning no ha llegado a funcionar por que uno no tiene el espacio en disco suficiente y el otro tiene una gráfica demasiado actual (serie 50XX) y la librería de Pytorch aún no funciona con esa gráfica.  
-Igualmente el entrenamiento en local es cosotoso y, para intentar mejorar el rendimiento del modelo y optimizar los recursos, hemos utilizado la librería **PEFT**
+Igualmente el entrenamiento en local es costoso y, para intentar mejorar el rendimiento del modelo y optimizar los recursos, hemos utilizado la librería **PEFT** y cambioamos a Qlora 4bits ya que nos dió un bug al usar el de 8bits.
 
 Hemos usado un modelo de voz también de código abierto, [Kokoro](https://github.com/hexgrad/kokoro?tab=readme-ov-file#advanced-usage).  
 Aún así hemos distosionado un poco la voz, cambiadole los ajustes como el pitch o la velocidad.
