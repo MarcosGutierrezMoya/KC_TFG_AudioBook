@@ -30,4 +30,4 @@ El fine-tuning no ha llegado a funcionar por que uno no tiene el espacio en disc
 Igualmente el entrenamiento en local es costoso y, para intentar mejorar el rendimiento del modelo y optimizar los recursos, hemos utilizado la librería **PEFT** y cambiamos a Qlora 4bits ya que nos dió un bug al usar el de 8bits.
 
 Hemos usado un modelo de voz también de código abierto, [Kokoro](https://github.com/hexgrad/kokoro?tab=readme-ov-file#advanced-usage).  
-Aún así hemos distosionado un poco la voz, cambiándole los ajustes como el pitch o la velocidad, con el fin de evitar problemas de copyright y derechos de autor por voces no propias/no autorizadas.
+Aún así hemos distosionado un poco la voz, cambiándole los ajustes como el pitch o la velocidad, con el fin de evitar problemas de derechos de autor por voces no propias/no autorizadas.
