@@ -29,6 +29,7 @@ def init():
     model = AutoModelForCausalLM.from_pretrained(
         "google/gemma-3-4b-it",
         cache_dir=local_model_dir,
+        # torch_dtype= torch.bfloat16 if torch.cuda.is_available() else torch.float32,
         torch_dtype= torch.float32
     )
 
