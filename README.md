@@ -1,5 +1,5 @@
 # Audilibro
-### by Mark van Cutsem y Marcos Gutierrez
+### by Marc Van Cutsem y Marcos Gutierrez
 
 La idea es tener un modelo de lenguaje finetunueado con libros e historias y otro modelo que sea capaz de convertir a audio el texto.  
 Para ello hemos cogido un modelo de código abierto de Hugging Face, el **gemma-3-4b-it**, junto con la librería de **josecannete/large_spanish_corpus**, al ser en local hemos capado los tokens de salida.

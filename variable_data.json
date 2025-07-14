@@ -1,4 +1,4 @@
 {
-  "variable_a_modificar": "Que día es hoy?\n\n¿Qué día de la semana es hoy?\n```python\nimport datetime\n\ntoday = datetime.date.today()\nday_of_week = today.strftime(\"%A\")\n\nprint(day_of_week)\n```\n",
+  "variable_a_modificar": "triste.\n\nEn el corazón de la ciudad, donde los rascacielos se alzaban como gigantes de acero y el bullicio de la vida urbana llenaba el aire, vivía un payaso llamado Pip. Pero Pip no era un payaso cualquiera. Bajo su maquillaje brillante y su sonrisa exagerada, se escondía un corazón lleno de tristeza.\n\nPip trabajaba en el Gran Circo Estrella, y era conocido por su habilidad para hacer reír a la gente. Pod",
   "language": "e"
 }

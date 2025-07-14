@@ -29,7 +29,7 @@ def init():
     model = AutoModelForCausalLM.from_pretrained(
         "google/gemma-3-4b-it",
         cache_dir=local_model_dir,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        torch_dtype= torch.float32
     )
 
     # 🧠 Prompt
@@ -37,9 +37,9 @@ def init():
     inputs = tokenizer(prompt["prompt"], return_tensors="pt", padding=True)
 
     # GPU si está disponible
-    if torch.cuda.is_available():
-        model = model.cuda()
-        inputs = {k: v.cuda() for k, v in inputs.items()}
+    # if torch.cuda.is_available():
+    #     model = model.cuda()
+    #     inputs = {k: v.cuda() for k, v in inputs.items()}
 
     # ✍️ Generar texto
     outputs = model.generate(
@@ -54,7 +54,14 @@ def init():
 
     # 📤 Mostrar respuesta
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    shared_variable.set_variable(generated_text, prompt["language"])
+    print("Texto generado:",generated_text)
+    # Quitar el texto del prompt si está al inicio del texto generado
+    prompt_text = prompt["prompt"].strip()
+    if generated_text.strip().startswith(prompt_text):
+        cleaned_text = generated_text.strip()[len(prompt_text):].lstrip()
+    else:
+        cleaned_text = generated_text.strip()
+    shared_variable.set_variable(cleaned_text, prompt["language"])
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # headless=True para ocultar el navegador
         page = browser.new_page()
@@ -62,10 +69,10 @@ def init():
 
         # Ejecuta funciones JS en el contexto de la página
         page.evaluate("executeNotebook()")
-        page.evaluate(f"updateVariable('{generated_text}')")
+        page.evaluate(f"updateVariable('{cleaned_text}')")
 
         # Espera para ver resultados o interactuar más
         page.wait_for_timeout(5000)
         browser.close()
     print("\n📗 Respuesta (modelo manual):")
-    print(generated_text)
+    print(cleaned_text)
