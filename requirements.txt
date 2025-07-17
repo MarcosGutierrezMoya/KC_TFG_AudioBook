@@ -21,3 +21,4 @@ datasets
 rouge_score
 bitsandbytes
 peft
+sounddevice
