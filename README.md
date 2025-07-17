@@ -1,5 +1,5 @@
 # Audiolibro
-### by Marc Van Cutsem y Marcos Gutierrez
+### by [Marc Van Cutsem](https://github.com/MarcVCE) y [Marcos Gutierrez](https://github.com/MarcosGutierrezMoya)
 
 La idea es tener un modelo de lenguaje finetunueado con libros e historias y otro modelo que sea capaz de convertir a audio el texto.  
 Para ello hemos cogido un modelo de código abierto y de uso local (precio gratuito) de Hugging Face, el **gemma-3-4b-it**, que es decente en la generación de texto, junto con la librería 
